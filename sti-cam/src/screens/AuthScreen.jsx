@@ -17,10 +17,10 @@ const GoogleIcon = () => (
   </svg>
 );
 
-import logoImg from '../assets/camera.png';
-import cloudImg from '../assets/cloud.png';
-import lensImg from '../assets/lens.png';
-import imagesImg from '../assets/images.png';
+import logoImg from '../assets/camera.svg';
+import cloudImg from '../assets/cloud.svg';
+import lensImg from '../assets/lens.svg';
+import imagesImg from '../assets/images.svg';
 import Footer from '../components/Footer';
 
 const FEATURES = [
@@ -77,8 +77,8 @@ export default function AuthScreen({ onSignIn, savedUser, isOffline }) {
         transition: 'all 0.6s ease',
       }}>
         <div style={styles.logoWrap}>
-          <img src={logoImg} alt="STI Cam Logo" style={styles.logoImg} />
-          <h1 style={styles.title}>STI Cam</h1>
+          <img src={logoImg} alt="SiteSnap Logo" style={styles.logoImg} />
+          <h1 style={styles.title}>SiteSnap</h1>
           <p style={styles.subtitle}>Registro fotográfico de obra</p>
         </div>
 

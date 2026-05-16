@@ -1,7 +1,7 @@
 {
-  "name": "sti-cam",
+  "name": "sitesnap",
   "version": "1.0.0",
-  "description": "STI Camera — Registro fotográfico de obra directo a Google Drive",
+  "description": "SiteSnap — Registro fotográfico de obra directo a Google Drive",
   "type": "module",
   "scripts": {
     "dev": "vite",
