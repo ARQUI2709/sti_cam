@@ -5,7 +5,7 @@ export default function Footer({ styleContent }) {
   return (
     <div style={{ ...styles.footer, ...styleContent }}>
       <img src={logoImg} alt="Os2group Logo" style={styles.logo} />
-      <span style={styles.text}>by Os2group - 2026 | ver1.14.12</span>
+      <span style={styles.text}>by Os2group - 2026 | ver1.14.13</span>
     </div>
   );
 }
