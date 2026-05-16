@@ -9,6 +9,7 @@ import ProjectSelector from '../components/ProjectSelector';
 import UploadStatusBar from '../components/UploadStatusBar';
 import Footer from '../components/Footer';
 import cameraImg from '../assets/camera.svg';
+import logoImg from '../assets/icon.png';
 import shareImg from '../assets/share.svg';
 import infoImg from '../assets/info.svg';
 import deleteImg from '../assets/delete.svg';
@@ -69,7 +70,7 @@ const DriveImage = memo(function DriveImage({
 });
 
 const CamIconSmall = () => (
-  <img src={cameraImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+  <img src={logoImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
 );
 
 const CamIconLarge = () => (
