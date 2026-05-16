@@ -69,7 +69,7 @@ const DriveImage = memo(function DriveImage({
 });
 
 const CamIconSmall = () => (
-  <img src={cameraImg} alt="SiteSnap" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+  <img src={cameraImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
 );
 
 const CamIconLarge = () => (
@@ -399,7 +399,7 @@ export default function HomeScreen({
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <CamIconSmall />
-          <span style={styles.headerTitle}>SiteSnap</span>
+          <span style={styles.headerTitle}>STI-Cam</span>
         </div>
         <div style={styles.headerRight}>
           {uploadingCount > 0 && (

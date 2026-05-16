@@ -1,6 +1,6 @@
 {
-  "name": "SiteSnap",
-  "short_name": "SiteSnap",
+  "name": "STI-Cam",
+  "short_name": "STI-Cam",
   "description": "Registro fotográfico de obra directo a Google Drive",
   "start_url": "/sti_cam/",
   "display": "standalone",

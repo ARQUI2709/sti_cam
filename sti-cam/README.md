@@ -1,4 +1,4 @@
-# SiteSnap 📸
+# STI-Cam 📸
 
 Registro fotográfico de obra — fotos directo a Google Drive, sin pasar por Google Photos.
 
@@ -49,13 +49,13 @@ npm install
 ### 2. Configurar Google Cloud (10 min)
 
 1. Ve a [Google Cloud Console](https://console.cloud.google.com)
-2. Crea un proyecto nuevo: `SiteSnap`
+2. Crea un proyecto nuevo: `STI-Cam`
 3. Ve a **APIs & Services → Library**
 4. Busca y habilita: **Google Drive API**
 5. Ve a **APIs & Services → Credentials**
 6. Click **Create Credentials → OAuth 2.0 Client ID**
 7. Tipo: **Web Application**
-8. Nombre: `SiteSnap`
+8. Nombre: `STI-Cam`
 9. **Authorized JavaScript origins:**
    - `http://localhost:5173` (desarrollo)
    - `https://TU_USUARIO.github.io` (producción)

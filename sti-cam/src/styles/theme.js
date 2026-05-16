@@ -1,5 +1,5 @@
 /**
- * Tema visual de SiteSnap.
+ * Tema visual de STI-Cam.
  * Colores, espaciado, tipografía.
  */
 

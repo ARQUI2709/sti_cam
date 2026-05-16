@@ -19,7 +19,7 @@ No test suite — this is a PWA, not a library.
 
 ## Architecture
 
-**SiteSnap** is a React 18 + Vite PWA for construction-site photo documentation. Photos are captured and uploaded directly to Google Drive, with a Google Sheets row appended per photo. The architecture is layered:
+**STI-Cam** is a React 18 + Vite PWA for construction-site photo documentation. Photos are captured and uploaded directly to Google Drive, with a Google Sheets row appended per photo. The architecture is layered:
 
 ```
 Screens (AuthScreen, HomeScreen, CameraScreen)
