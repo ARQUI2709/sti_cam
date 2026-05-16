@@ -8,11 +8,11 @@ import { getAccessToken } from '../infrastructure/GoogleAuth';
 import ProjectSelector from '../components/ProjectSelector';
 import UploadStatusBar from '../components/UploadStatusBar';
 import Footer from '../components/Footer';
-import cameraImg from '../assets/camera.png';
-import shareImg from '../assets/share.png';
-import infoImg from '../assets/info.png';
-import deleteImg from '../assets/delete.png';
-import logoutImg from '../assets/logout.png';
+import cameraImg from '../assets/camera.svg';
+import shareImg from '../assets/share.svg';
+import infoImg from '../assets/info.svg';
+import deleteImg from '../assets/delete.svg';
+import logoutImg from '../assets/logout.svg';
 
 /**
  * Loads a Drive image using the current user's OAuth token.
@@ -69,7 +69,7 @@ const DriveImage = memo(function DriveImage({
 });
 
 const CamIconSmall = () => (
-  <img src={cameraImg} alt="STI Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+  <img src={cameraImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
 );
 
 const CamIconLarge = () => (
@@ -399,7 +399,7 @@ export default function HomeScreen({
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <CamIconSmall />
-          <span style={styles.headerTitle}>STI Cam</span>
+          <span style={styles.headerTitle}>STI-Cam</span>
         </div>
         <div style={styles.headerRight}>
           {uploadingCount > 0 && (

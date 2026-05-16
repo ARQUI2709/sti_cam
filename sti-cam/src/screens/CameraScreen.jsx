@@ -7,7 +7,7 @@ import ShutterButton from '../components/ShutterButton';
 import UploadQueueSheet from '../components/UploadQueueSheet';
 import Footer from '../components/Footer';
 import { colors, font, radius, globalStyles } from '../styles/theme';
-import galleryIcon from '../assets/images.png';
+import galleryIcon from '../assets/images.svg';
 
 const ASPECTS = ['4:3', '1:1', 'full'];
 

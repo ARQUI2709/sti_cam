@@ -1,11 +1,11 @@
 /**
- * Tema visual de STI Cam.
+ * Tema visual de STI-Cam.
  * Colores, espaciado, tipografía.
  */
 
 export const colors = {
-  bg:          '#19181e',
-  bgCard:      '#1a1c1e',
+  bg:          '#19181E',
+  bgCard:      '#1A1C1E',
   bgInput:     '#1F2937',
   border:      '#1F2937',
   borderLight: '#374151',
@@ -13,17 +13,17 @@ export const colors = {
   textMuted:   '#9CA3AF',
   textDim:     '#6B7280',
   textWhite:   '#F9FAFB',
-  accent:      '#F97316',
-  accentLight: 'rgba(249,115,22,0.15)',
-  accentGlow:  'rgba(249,115,22,0.2)',
+  accent:      '#730000',
+  accentLight: '#2A1A0A',
+  accentGlow:  '#730606',
   success:     '#22C55E',
-  successBg:   '#1a1f1a',
-  successBorder: '#22472a',
-  error:       '#EF4444',
+  successBg:   '#1A1F1A',
+  successBorder: '#22472A',
+  error:       '#A83030',
   white:       '#FFFFFF',
   black:       '#000000',
-  overlay:     'rgba(0,0,0,0.5)',
-  glass:       'rgba(255,255,255,0.1)',
+  overlay:     '#00000099',
+  glass:       '#FFFFFF1F',
   glassBorder: 'rgba(255,255,255,0.15)',
 };
 

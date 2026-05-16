@@ -77,7 +77,7 @@ const styles = {
   },
   progressFill: {
     height: '100%',
-    background: `linear-gradient(90deg, ${colors.accent}, #FB923C)`,
+    background: `linear-gradient(90deg, ${colors.accent}, #A11212)`,
     borderRadius: 3, transition: 'width 0.3s ease',
   },
 };

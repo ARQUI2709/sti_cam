@@ -1,4 +1,4 @@
-# STI Cam 📸
+# STI-Cam 📸
 
 Registro fotográfico de obra — fotos directo a Google Drive, sin pasar por Google Photos.
 
@@ -55,7 +55,7 @@ npm install
 5. Ve a **APIs & Services → Credentials**
 6. Click **Create Credentials → OAuth 2.0 Client ID**
 7. Tipo: **Web Application**
-8. Nombre: `STI Cam`
+8. Nombre: `STI-Cam`
 9. **Authorized JavaScript origins:**
    - `http://localhost:5173` (desarrollo)
    - `https://TU_USUARIO.github.io` (producción)

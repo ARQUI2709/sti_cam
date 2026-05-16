@@ -1,6 +1,6 @@
 {
-  "name": "STI Cam",
-  "short_name": "STI Cam",
+  "name": "STI-Cam",
+  "short_name": "STI-Cam",
   "description": "Registro fotográfico de obra directo a Google Drive",
   "start_url": "/sti_cam/",
   "display": "standalone",

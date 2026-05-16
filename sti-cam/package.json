@@ -1,7 +1,7 @@
 {
   "name": "sti-cam",
   "version": "1.0.0",
-  "description": "STI Camera — Registro fotográfico de obra directo a Google Drive",
+  "description": "STI-Cam — Registro fotográfico de obra directo a Google Drive",
   "type": "module",
   "scripts": {
     "dev": "vite",
