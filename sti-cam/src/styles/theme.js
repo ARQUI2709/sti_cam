@@ -4,7 +4,7 @@
  */
 
 export const colors = {
-  bg:          '#19181E',
+  bg:          '#000000',
   bgCard:      '#1A1C1E',
   bgInput:     '#1F2937',
   border:      '#1F2937',
@@ -14,12 +14,12 @@ export const colors = {
   textDim:     '#6B7280',
   textWhite:   '#F9FAFB',
   accent:      '#540000',
-  accentLight: '#2A0A0A',
-  accentGlow:  '#4A0404',
+  accentLight: '#54000069',
+  accentGlow:  '#210202',
   success:     '#22C55E',
   successBg:   '#1A1F1A',
   successBorder: '#22472A',
-  error:       '#611C1C',
+  error:       '#E64242',
   white:       '#FFFFFF',
   black:       '#000000',
   overlay:     '#00000099',

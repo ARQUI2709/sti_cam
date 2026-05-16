@@ -168,7 +168,7 @@ const styles = {
   addBtn: {
     display: 'block', width: '100%', padding: '14px 16px',
     border: 'none', background: 'transparent',
-    color: colors.accent, fontSize: font.base, fontWeight: 600,
+    color: colors.textDim, fontSize: font.base, fontWeight: 600,
     cursor: 'pointer', textAlign: 'left', fontFamily: font.family,
   },
   createForm: {
