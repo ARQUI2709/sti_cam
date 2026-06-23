@@ -9,7 +9,7 @@ import ProjectSelector from '../components/ProjectSelector';
 import UploadStatusBar from '../components/UploadStatusBar';
 import Footer from '../components/Footer';
 import cameraImg from '../assets/camera.svg';
-import logoImg from '../assets/icon.png';
+import logoImg from '../assets/icon.svg';
 import shareImg from '../assets/share.svg';
 import infoImg from '../assets/info.svg';
 import deleteImg from '../assets/delete.svg';

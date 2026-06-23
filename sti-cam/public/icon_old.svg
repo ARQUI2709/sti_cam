@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Clip that excludes the lens circle area from the body rect -->
+    <clipPath id="bodyClip">
+      <path d="M 0 0 H 512 V 512 H 0 Z M 256 297 m -75 0 a 75 75 0 1 0 150 0 a 75 75 0 1 0 -150 0"
+            clip-rule="evenodd"/>
+    </clipPath>
+  </defs>
+  <!-- Background: dark rounded square -->
+  <rect width="512" height="512" rx="100" ry="100" fill="#212127" />
+
+  <!-- Outer border of rounded square (copper stroke) -->
+  <rect x="16" y="16" width="480" height="480" rx="88" ry="88"
+        fill="none" stroke="#575656" stroke-width="12" />
+
+  <!-- Camera body (main trapezoid shape) -->
+  <!-- Top bar with viewfinder bump (open path / line) -->
+  <path d="
+    M 92 240
+    L 92 190
+    Q 102 180 105 180
+    L 173 180
+    L 190 160
+    Q 195 150 210 150
+    L 302 150
+    Q 317 150 322 160
+    L 339 180
+    L 407 180
+    Q 410 180 420 190
+    L 420 240"
+    fill="none" stroke="#575656" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Camera main body rectangle (sharp top corners, rounded bottom corners) -->
+  <path d="
+    M 92 240
+    L 420 240
+    L 420 382
+    Q 420 405 397 405
+    L 115 405
+    Q 92 405 92 382
+    Z"
+    fill="none" stroke="#575656" stroke-width="13" stroke-linejoin="round"
+    clip-path="url(#bodyClip)"/>
+
+  <!-- Lens outer ring -->
+  <circle cx="256" cy="297" r="75"
+          fill="none" stroke="#575656" stroke-width="13"/>
+
+  <!-- Lens inner ring -->
+  <circle cx="256" cy="297" r="44"
+          fill="none" stroke="#575656" stroke-width="11"/>
+
+  <!-- Flash / small line top-right of body -->
+  <line x1="355" y1="210" x2="396" y2="210"
+        stroke="#575656" stroke-width="14" />
+
+  <!-- Shutter button bump top-left (open path sitting flush on top plate) -->
+  <path d="
+    M 120 180
+    L 120 169
+    Q 120 164 125 164
+    L 150 164
+    Q 155 164 155 169
+    L 155 180"
+    fill="none" stroke="#575656" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

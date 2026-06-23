@@ -9,6 +9,12 @@
   "theme_color": "#19181e",
   "icons": [
     {
+      "src": "/sti_cam/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/sti_cam/icon.png",
       "sizes": "512x512",
       "type": "image/png"

@@ -17,7 +17,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-import logoImg from '../assets/icon.png';
+import logoImg from '../assets/icon.svg';
 import cloudImg from '../assets/cloud.svg';
 import lensImg from '../assets/lens.svg';
 import imagesImg from '../assets/images.svg';
