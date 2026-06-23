@@ -2,30 +2,23 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { createPhoto } from '../domain/Photo';
 import { getProject } from '../config/projects';
-import AspectPicker from '../components/AspectPicker';
 import ShutterButton from '../components/ShutterButton';
 import UploadQueueSheet from '../components/UploadQueueSheet';
 import Footer from '../components/Footer';
 import { colors, font, radius, globalStyles } from '../styles/theme';
 import galleryIcon from '../assets/images.svg';
 
-const ASPECTS = ['4:3', '1:1', 'full'];
-
 export default function CameraScreen({
   project, queue, sessionCount, addToQueue, updateQueueItem, enqueueUpload, onClose,
 }) {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
+  const captureInputRef = useRef(null);
   const camera = useCamera();
 
-  const [aspect, setAspect] = useState('full');
   const [flashAnim, setFlashAnim] = useState(false);
   const [lastThumb, setLastThumb] = useState(null);
   const [showQueue, setShowQueue] = useState(false);
-
-  // Zoom state
-  const [zoomRange, setZoomRange] = useState(null);  // { min, max, step } or null
-  const [zoom, setZoom] = useState(1);
   const lastLocation = useRef(null);  // cached GPS position
 
   const projectInfo = getProject(project);
@@ -57,42 +50,33 @@ export default function CameraScreen({
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
+  // Live preview as a viewfinder only — the actual capture uses the native camera.
   useEffect(() => {
     if (videoRef.current) {
-      camera.start(videoRef.current).then((zoomCaps) => {
-        if (zoomCaps) {
-          setZoomRange(zoomCaps);
-          setZoom(1);
-          camera.setZoom(1);
-        }
-      });
+      camera.start(videoRef.current);
     }
     return () => camera.stop();
   }, []);
 
-  // Apply zoom via track constraints
-  const handleZoomChange = useCallback(async (value) => {
-    setZoom(value);
-    await camera.setZoom(value);
-  }, [camera]);
+  // Capture via the native iOS/Android camera (full sensor resolution + EXIF).
+  // The <input capture> opens the device's real camera app and returns a single
+  // full-quality file, bypassing the resolution-capped getUserMedia preview frame.
+  const handleNativeCapture = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
 
-  const handleCapture = useCallback(async () => {
-    if (!camera.isReady) return;
-
-    const blob = await camera.capture(aspect);
-    if (!blob) return;
+    const blob = file.slice(0, file.size, file.type || 'image/jpeg');
 
     setFlashAnim(true);
     setTimeout(() => setFlashAnim(false), 150);
 
-    const num = sessionCount + 1;
     const photo = createPhoto({
       blob,
       projectId: project,
       projectName: projectInfo?.name,
-      sessionNumber: num,
+      sessionNumber: sessionCount + 1,
       location: lastLocation.current,
-      captureInfo: camera.getCaptureInfo(),
     });
 
     setLastThumb(photo.thumbUrl);
@@ -105,9 +89,8 @@ export default function CameraScreen({
       status: 'pending',
       progress: 0,
     });
-
     enqueueUpload(photo);
-  }, [camera, aspect, project, sessionCount, addToQueue, enqueueUpload]);
+  }, [project, projectInfo, sessionCount, addToQueue, enqueueUpload]);
 
   // Import photo(s) from device gallery, preserving original file metadata
   const handleGalleryFile = useCallback(async (e) => {
@@ -146,18 +129,6 @@ export default function CameraScreen({
 
       <video ref={videoRef} playsInline muted autoPlay style={styles.video} />
 
-      {/* Aspect ratio crop overlay */}
-      {aspect !== 'full' && (
-        <div style={styles.cropOverlay}>
-          <div style={styles.cropLetterbox} />
-          <div style={{
-            ...styles.cropCenter,
-            aspectRatio: aspect === '4:3' ? '3/4' : '1/1',
-          }} />
-          <div style={styles.cropLetterbox} />
-        </div>
-      )}
-
       {flashAnim && <div style={styles.flash} />}
 
       {/* Top bar */}
@@ -168,23 +139,15 @@ export default function CameraScreen({
         </div>
       </div>
 
-      <AspectPicker aspects={ASPECTS} selected={aspect} onChange={setAspect} />
-
-      {/* Zoom slider — shown only when the camera supports zoom */}
-      {zoomRange && (
-        <div style={styles.zoomBar}>
-          <span style={styles.zoomLabel}>{zoom.toFixed(1)}×</span>
-          <input
-            type="range"
-            min={zoomRange.min}
-            max={zoomRange.max}
-            step={zoomRange.step || 0.1}
-            value={zoom}
-            onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-            style={styles.zoomSlider}
-          />
-        </div>
-      )}
+      {/* Hidden input — opens the native camera at full sensor resolution */}
+      <input
+        ref={captureInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={handleNativeCapture}
+      />
 
       {/* Bottom controls */}
       <div style={styles.bottomBar}>
@@ -213,7 +176,7 @@ export default function CameraScreen({
           </div>
         </div>
 
-        <ShutterButton onPress={handleCapture} disabled={!camera.isReady} />
+        <ShutterButton onPress={() => captureInputRef.current?.click()} />
 
         {/* Upload status */}
         <div style={styles.sideSlot}>
@@ -257,15 +220,6 @@ const styles = {
     fontFamily: font.family,
   },
   video: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
-  cropOverlay: {
-    position: 'absolute', inset: 0, zIndex: 5,
-    display: 'flex', flexDirection: 'column', pointerEvents: 'none',
-  },
-  cropLetterbox: { flex: 1, background: 'rgba(0,0,0,0.5)' },
-  cropCenter: {
-    width: '100%', flexShrink: 0,
-    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.3)',
-  },
   flash: {
     position: 'absolute', inset: 0, background: 'white', zIndex: 10,
     animation: 'flashFade 0.15s ease forwards', pointerEvents: 'none',
@@ -287,19 +241,6 @@ const styles = {
     flex: 1, fontSize: 13, color: 'white', fontWeight: 500,
     background: 'rgba(255,255,255,0.1)', padding: '6px 12px',
     borderRadius: radius.md, backdropFilter: 'blur(8px)', textAlign: 'center',
-  },
-  // Zoom bar sits above the bottom controls
-  zoomBar: {
-    position: 'absolute', bottom: 200, left: 24, right: 24, zIndex: 20,
-    display: 'flex', alignItems: 'center', gap: 10,
-  },
-  zoomLabel: {
-    color: 'white', fontSize: 12, fontWeight: 600,
-    width: 34, textAlign: 'right', flexShrink: 0,
-    textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-  },
-  zoomSlider: {
-    flex: 1, height: 3, accentColor: colors.accent, cursor: 'pointer',
   },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20,

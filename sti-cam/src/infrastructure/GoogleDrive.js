@@ -13,6 +13,9 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 // Cache de folder IDs para no buscar repetidamente
 const folderCache = new Map();
 
+// Carpetas que ya marcamos como públicas en esta sesión (evita llamadas repetidas)
+const publicFolders = new Set();
+
 const API_TIMEOUT_MS = 30000;    // 30 s for metadata/search calls
 const UPLOAD_TIMEOUT_MS = 120000; // 2 min for upload requests
 
@@ -80,8 +83,39 @@ async function createFolder(name, parentId = 'root') {
 }
 
 /**
+ * Hace una carpeta visible para cualquiera con el enlace ("anyone with the link").
+ * Los permisos en Drive se heredan hacia abajo, así que los archivos y subcarpetas
+ * dentro también quedan visibles automáticamente.
+ *
+ * Es idempotente: si la carpeta ya es pública la API no falla, y además
+ * cacheamos los IDs ya procesados para no repetir la llamada en la sesión.
+ */
+async function setFolderPublic(folderId) {
+  if (publicFolders.has(folderId)) return;
+  try {
+    const headers = await authHeaders();
+    const res = await fetchWithTimeout(`${DRIVE_API}/files/${folderId}/permissions`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+    if (res.ok) {
+      publicFolders.add(folderId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      logger.log(`[drive] no se pudo hacer pública la carpeta ${folderId}: ${err.error?.message || res.status}`);
+    }
+  } catch (e) {
+    // No bloqueante: si falla, la carpeta sigue siendo privada pero la app funciona
+    logger.log(`[drive] error al hacer pública la carpeta ${folderId}: ${e.message}`);
+  }
+}
+
+/**
  * Obtiene o crea la carpeta de un proyecto.
  * Estructura: STI-Fotos / {projectName}
+ * Ambas carpetas se marcan como públicas para que las fotos sean visibles
+ * con el enlace, tanto las nuevas como las ya existentes.
  * @returns {string} folder ID del proyecto
  */
 export async function getProjectFolderId(projectName) {
@@ -90,12 +124,14 @@ export async function getProjectFolderId(projectName) {
   if (!rootId) {
     rootId = await createFolder(DRIVE_ROOT_FOLDER, 'root');
   }
+  await setFolderPublic(rootId);
 
   // 2. Subcarpeta del proyecto
   let projectId = await findFolder(projectName, rootId);
   if (!projectId) {
     projectId = await createFolder(projectName, rootId);
   }
+  await setFolderPublic(projectId);
 
   return projectId;
 }

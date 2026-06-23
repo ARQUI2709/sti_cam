@@ -13,8 +13,42 @@ import { getAccessToken } from './GoogleAuth.js';
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const DRIVE_API  = 'https://www.googleapis.com/drive/v3';
 
+// Display pattern for the date column (locale-independent: applied as a number format)
+const DATE_PATTERN = 'dd/mm/yyyy hh:mm:ss';
+
 // Cache: projectName → spreadsheetId
 const sheetCache = new Map();
+
+/**
+ * Converts a JS Date (or timestamp) to a Google Sheets serial number so the
+ * value is stored as a real date — recognized regardless of the sheet's locale.
+ * Sheets serial = days since 1899-12-30, interpreted as wall-clock time.
+ * @param {Date|number|string} value
+ * @returns {number|string} serial number, or '' if value is falsy/invalid
+ */
+function toSheetsSerial(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const epoch = Date.UTC(1899, 11, 30);
+  // Shift to local wall-clock time so the displayed time matches the capture time
+  const local = d.getTime() - d.getTimezoneOffset() * 60000;
+  return (local - epoch) / 86400000;
+}
+
+/**
+ * batchUpdate request that formats column B (the date column) below the header
+ * as a date-time. Applied on every write so pre-existing sheets get fixed too.
+ */
+function dateColumnFormatRequest(sheetId) {
+  return {
+    repeatCell: {
+      range: { sheetId, startRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },
+      cell: { userEnteredFormat: { numberFormat: { type: 'DATE_TIME', pattern: DATE_PATTERN } } },
+      fields: 'userEnteredFormat.numberFormat',
+    },
+  };
+}
 
 async function authHeaders(includeContentType = true, forceConsent = false) {
   const token = await getAccessToken(forceConsent);
@@ -130,6 +164,8 @@ async function _writeHeader(spreadsheetId, headers) {
             fields: 'hiddenByUser',
           },
         },
+        // Format column B (Fecha) as date-time so it's recognized in any locale
+        dateColumnFormatRequest(sheetId),
         // Set row height for image rows
         {
           updateDimensionProperties: {
@@ -158,9 +194,7 @@ async function _writeHeader(spreadsheetId, headers) {
 export async function appendPhotoRow(spreadsheetId, photo) {
   const headers = await authHeaders();
   const imageUrl = `https://drive.google.com/thumbnail?id=${photo.driveFileId}&sz=w400`;
-  const date = photo.createdAt
-    ? new Date(photo.createdAt).toLocaleString('es-CO')
-    : '';
+  const date = toSheetsSerial(photo.createdAt);
   const size = photo.sizeLabel || '';
 
   const appendRes = await fetch(
@@ -193,16 +227,69 @@ export async function appendPhotoRow(spreadsheetId, photo) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        requests: [{
-          updateDimensionProperties: {
-            range: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 },
-            properties: { pixelSize: 180 },
-            fields: 'pixelSize',
+        requests: [
+          {
+            updateDimensionProperties: {
+              range: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 },
+              properties: { pixelSize: 180 },
+              fields: 'pixelSize',
+            },
           },
-        }],
+          dateColumnFormatRequest(sheetId),
+        ],
       }),
     });
   }
+}
+
+/**
+ * Rewrites legacy text date cells in column B as real date serials.
+ * Source of truth is each row's Drive file createdTime (matched by File ID in
+ * column E), so we never parse locale-specific date strings.
+ * @param {string} spreadsheetId
+ * @param {Array<Array>} existingRows - unformatted values for Fotos!B2:E
+ * @param {Array<{id, createdTime}>} driveFiles
+ * @param {object} headers
+ */
+async function _backfillDateColumn(spreadsheetId, existingRows, driveFiles, headers) {
+  if (!existingRows.length) return;
+  const createdById = new Map(driveFiles.map((f) => [f.id, f.createdTime]));
+
+  let changed = false;
+  const bColumn = existingRows.map((row) => {
+    const current = row?.[0];
+    // Already a numeric serial → leave it untouched.
+    if (typeof current === 'number') return [current];
+    const fileId = row?.[3];
+    const createdTime = createdById.get(fileId);
+    if (createdTime) {
+      const serial = toSheetsSerial(createdTime);
+      if (serial !== '') {
+        changed = true;
+        return [serial];
+      }
+    }
+    // No reliable source — keep whatever is there.
+    return [current ?? ''];
+  });
+
+  if (!changed) return;
+
+  const endRow = bColumn.length + 1; // data starts at row 2
+  await fetch(
+    `${SHEETS_API}/${spreadsheetId}/values/Fotos!B2:B${endRow}?valueInputOption=USER_ENTERED`,
+    { method: 'PUT', headers, body: JSON.stringify({ values: bColumn }) }
+  );
+
+  // Ensure the column carries the date-time format (older sheets may lack it).
+  const sheetRes = await fetch(`${SHEETS_API}/${spreadsheetId}?fields=sheets.properties`, { headers });
+  const { sheets } = await sheetRes.json();
+  const sheetId = sheets[0].properties.sheetId;
+  await fetch(`${SHEETS_API}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ requests: [dateColumnFormatRequest(sheetId)] }),
+  });
 }
 
 /**
@@ -217,17 +304,25 @@ export async function syncSheetFromDrive(spreadsheetId, driveFiles) {
   if (!driveFiles?.length) return;
   const headers = await authHeaders();
 
-  // Read existing file IDs from column E
-  const res = await fetch(`${SHEETS_API}/${spreadsheetId}/values/Fotos!E:E`, { headers });
-  const { values = [] } = await res.json();
-  const existingIds = new Set(values.flat().filter(Boolean));
+  // Read existing date (B) + file ID (E) columns, unformatted so numeric serials
+  // come back as numbers (lets us skip rows already migrated).
+  const res = await fetch(
+    `${SHEETS_API}/${spreadsheetId}/values/Fotos!B2:E?valueRenderOption=UNFORMATTED_VALUE`,
+    { headers }
+  );
+  const { values: existingRows = [] } = await res.json();
+  const existingIds = new Set(existingRows.map((r) => r?.[3]).filter(Boolean));
+
+  // Backfill: rewrite any text/legacy date cells as real date serials, sourced
+  // from the matching Drive file's createdTime. Runs on every sync by default.
+  await _backfillDateColumn(spreadsheetId, existingRows, driveFiles, headers);
 
   const missing = driveFiles.filter((f) => !existingIds.has(f.id));
   if (!missing.length) return;
 
   const rows = missing.map((f) => {
     const imageUrl = `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`;
-    const date = f.createdTime ? new Date(f.createdTime).toLocaleString('es-CO') : '';
+    const date = toSheetsSerial(f.createdTime);
     const size = f.size ? `${(parseInt(f.size, 10) / 1024).toFixed(0)} KB` : '';
     return [f.name, date, size, `=IMAGE("${imageUrl}")`, f.id];
   });
@@ -255,13 +350,16 @@ export async function syncSheetFromDrive(spreadsheetId, driveFiles) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        requests: [{
-          updateDimensionProperties: {
-            range: { sheetId, dimension: 'ROWS', startIndex: startRow, endIndex: endRow },
-            properties: { pixelSize: 180 },
-            fields: 'pixelSize',
+        requests: [
+          {
+            updateDimensionProperties: {
+              range: { sheetId, dimension: 'ROWS', startIndex: startRow, endIndex: endRow },
+              properties: { pixelSize: 180 },
+              fields: 'pixelSize',
+            },
           },
-        }],
+          dateColumnFormatRequest(sheetId),
+        ],
       }),
     });
   }
