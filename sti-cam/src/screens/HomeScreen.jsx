@@ -536,7 +536,11 @@ export default function HomeScreen({
               style={{ display: 'none' }}
               onChange={handleGalleryFile}
             />
-            <p style={styles.cameraLabel}>Importar foto</p>
+            <p style={styles.cameraLabel}>
+              {!selectedProject
+                ? 'Selecciona un proyecto primero'
+                : 'Importar foto'}
+            </p>
           </div>
         </div>
         {project && (
