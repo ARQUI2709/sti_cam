@@ -71,17 +71,16 @@ const DriveImage = memo(function DriveImage({
   return <img ref={imgRef} src={src || ''} alt={alt} style={style} loading={loading} onLoad={onLoad} />;
 });
 
+// brightness(0) invert(1) recolors the (otherwise grey) SVG to #ffffff here only,
+// without editing the source asset.
+const WHITE_FILTER = 'brightness(0) invert(1)';
+
 const CamIconSmall = () => (
-  <img src={logoImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+  <img src={logoImg} alt="STI-Cam" style={{ width: 36, height: 36, objectFit: 'contain'}} />
 );
 
 const CamIconLarge = () => (
-  <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
-    <rect x="4" y="14" width="40" height="28" rx="3" stroke="white" strokeWidth="2.5" fill="none"/>
-    <circle cx="24" cy="28" r="8" stroke="white" strokeWidth="2.5" fill="none"/>
-    <circle cx="24" cy="28" r="3" fill="white"/>
-    <rect x="14" y="8" width="20" height="6" rx="2" stroke="white" strokeWidth="2" fill="none"/>
-  </svg>
+  <img src={cameraImg} alt="Cámara" style={{ width: 48, height: 48, objectFit: 'contain', filter: WHITE_FILTER }} />
 );
 
 function groupByDate(photos) {
@@ -940,7 +939,7 @@ const styles = {
   },
   galleryIconImg: {
     width: 48, height: 48, objectFit: 'contain',
-    borderRadius: '24%', overflow: 'hidden',
+    borderRadius: '24%', overflow: 'hidden', filter: WHITE_FILTER,
   },
   cameraBtn: {
     width: 96, height: 96, borderRadius: '50%',
