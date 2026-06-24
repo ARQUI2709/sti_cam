@@ -462,45 +462,51 @@ export default function HomeScreen({
       {/* Camera Button */}
       <div style={styles.cameraSection}>
         <div style={styles.cameraRow}>
-          <button
-            onClick={onOpenCamera}
-            disabled={!selectedProject}
-            style={{
-              ...styles.cameraBtn,
-              ...(selectedProject ? {} : styles.cameraBtnOff),
-            }}
-          >
-            <CamIconLarge />
-          </button>
+          {/* Capture */}
+          <div style={styles.cameraCol}>
+            <button
+              onClick={onOpenCamera}
+              disabled={!selectedProject}
+              style={{
+                ...styles.cameraBtn,
+                ...(selectedProject ? {} : styles.cameraBtnOff),
+              }}
+            >
+              <CamIconLarge />
+            </button>
+            <p style={styles.cameraLabel}>
+              {!selectedProject
+                ? 'Selecciona un proyecto primero'
+                : sessionCount === 0
+                ? 'Abrir camara'
+                : 'Continuar captura'}
+            </p>
+          </div>
 
           {/* Gallery import */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!selectedProject}
-            style={{
-              ...styles.galleryBtn,
-              ...(selectedProject ? {} : styles.galleryBtnOff),
-            }}
-            title="Importar de galería"
-          >
-            <img src={galleryIcon} alt="Galería" style={styles.galleryIconImg} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleGalleryFile}
-          />
+          <div style={styles.cameraCol}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!selectedProject}
+              style={{
+                ...styles.cameraBtn,
+                ...(selectedProject ? {} : styles.cameraBtnOff),
+              }}
+              title="Importar de galería"
+            >
+              <img src={galleryIcon} alt="Galería" style={styles.galleryIconImg} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleGalleryFile}
+            />
+            <p style={styles.cameraLabel}>Importar foto</p>
+          </div>
         </div>
-        <p style={styles.cameraLabel}>
-          {!selectedProject
-            ? 'Selecciona un proyecto primero'
-            : sessionCount === 0
-            ? 'Abrir camara'
-            : 'Continuar captura'}
-        </p>
         {project && (
           <p style={styles.cameraDest}>STI-Fotos / {project.name}</p>
         )}
@@ -923,22 +929,18 @@ const styles = {
     padding: `${spacing.xxl}px ${spacing.xl}px ${spacing.lg}px`, gap: spacing.sm + 2,
   },
   cameraRow: {
-    position: 'relative', width: '100%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '100%',
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+    gap: spacing.xl,
   },
-  galleryBtn: {
-    position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)',
-    width: 56, height: 56, borderRadius: '50%',
-    background: colors.bgInput, border: `1px solid ${colors.borderLight}`,
-    cursor: 'pointer', padding: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  galleryBtnOff: {
-    opacity: 0.5,
+  cameraCol: {
+    flex: 1, maxWidth: 160,
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    gap: spacing.sm + 2,
   },
   galleryIconImg: {
-    width: 36, height: 36, objectFit: 'contain',
-    borderRadius: '30%', overflow: 'hidden',
+    width: 48, height: 48, objectFit: 'contain',
+    borderRadius: '24%', overflow: 'hidden',
   },
   cameraBtn: {
     width: 96, height: 96, borderRadius: '50%',
