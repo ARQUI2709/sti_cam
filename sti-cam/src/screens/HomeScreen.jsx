@@ -21,32 +21,47 @@ import galleryIcon from '../assets/images.svg';
  * Loads a Drive image using the current user's OAuth token.
  * Avoids 403 errors caused by signed thumbnailLink URLs that are user-specific.
  */
+// Screen-sized image for the full-screen viewer. Drive's thumbnailLink is a
+// signed URL ending in a size suffix (e.g. `=s220`); bumping it to `=s1600`
+// yields a sharp, screen-resolution image (~150–500KB) instead of the multi-MB
+// original — and it's a plain GET the browser can cache (no auth, no blob).
+const VIEWER_THUMB_SIZE = 1600;
+function hiResThumb(link) {
+  if (!link) return null;
+  return link.replace(/=s\d+(-c)?$/, `=s${VIEWER_THUMB_SIZE}`);
+}
+
 /**
- * DriveImage — two modes:
+ * DriveImage — three sources, in priority order:
  *
  * thumbnail=true  → uses thumbnailLink directly (signed URL, no auth, ~50KB).
  *                   Fast for grids. Requires the `thumbUrl` prop.
  *
- * thumbnail=false → downloads the full file via authenticated fetch.
- *                   Used only for the full-screen viewer.
+ * hiResUrl set    → uses a screen-sized signed thumbnail directly (viewer).
+ *                   No auth, browser-cacheable.
+ *
+ * otherwise       → downloads the full file via authenticated fetch
+ *                   (fallback when no thumbnailLink exists).
  */
 const DriveImage = memo(function DriveImage({
-  fileId, thumbUrl, thumbnail = false, preloadedUrl = null,
+  fileId, thumbUrl, thumbnail = false, hiResUrl = null,
   style, alt = '', loading = 'eager', imgRef, onLoad,
 }) {
-  const [src, setSrc] = useState(thumbnail && thumbUrl ? thumbUrl : null);
+  const [src, setSrc] = useState(
+    thumbnail && thumbUrl ? thumbUrl : (hiResUrl || null)
+  );
 
   useEffect(() => {
     if (thumbnail && thumbUrl) {
       setSrc(thumbUrl);
       return;
     }
-    // Use preloaded object URL if ready
-    if (preloadedUrl && preloadedUrl !== 'loading') {
-      setSrc(preloadedUrl);
+    // Screen-sized signed thumbnail — no auth, browser-cacheable.
+    if (hiResUrl) {
+      setSrc(hiResUrl);
       return;
     }
-    // Full-resolution authenticated fetch (also fallback when no thumbnailLink)
+    // Fallback: full-resolution authenticated fetch (no thumbnailLink).
     let revoked = false;
     let objectUrl = null;
     setSrc(null); // clear previous photo while loading
@@ -66,7 +81,7 @@ const DriveImage = memo(function DriveImage({
       revoked = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [fileId, thumbnail, thumbUrl, preloadedUrl]);
+  }, [fileId, thumbnail, thumbUrl, hiResUrl]);
 
   return <img ref={imgRef} src={src || ''} alt={alt} style={style} loading={loading} onLoad={onLoad} />;
 });
@@ -162,34 +177,17 @@ export default function HomeScreen({
     if (viewerIndex !== null) setViewerLoading(true);
   }, [viewerIndex]);
 
-  // Preload cache: fileId → object URL (full-res)
-  // readyIds triggers re-render when a preload finishes so DriveImage picks it up
-  const preloadCache = useRef(new Map());
-  const [readyIds, setReadyIds] = useState(new Set());
-
+  // Warm the browser cache for the neighbouring photos (±2) so swiping is
+  // instant. Hi-res thumbnails are plain signed GETs, so a bare Image() is
+  // enough — the browser handles caching; no object URLs to track or revoke.
   useEffect(() => {
     if (viewerIndex === null) return;
-    const toPreload = [viewerIndex - 1, viewerIndex, viewerIndex + 1].filter(
-      (i) => i >= 0 && i < photos.length
-    );
-    toPreload.forEach((i) => {
-      const id = photos[i]?.id;
-      if (!id || preloadCache.current.has(id)) return;
-      preloadCache.current.set(id, 'loading');
-      getAccessToken()
-        .then((token) =>
-          fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-        )
-        .then((res) => res.blob())
-        .then((blob) => {
-          const url = URL.createObjectURL(blob);
-          preloadCache.current.set(id, url);
-          setReadyIds((prev) => new Set([...prev, id]));
-        })
-        .catch(() => preloadCache.current.delete(id));
-    });
+    [viewerIndex - 2, viewerIndex - 1, viewerIndex + 1, viewerIndex + 2]
+      .filter((i) => i >= 0 && i < photos.length)
+      .forEach((i) => {
+        const url = hiResThumb(photos[i]?.thumbnailLink);
+        if (url) new Image().src = url;
+      });
   }, [viewerIndex, photos]);
 
   const handleTouchStart = useCallback((e) => {
@@ -682,9 +680,7 @@ export default function HomeScreen({
             <DriveImage
               key={photos[viewerIndex].id}
               fileId={photos[viewerIndex].id}
-              preloadedUrl={readyIds.has(photos[viewerIndex].id)
-                ? (preloadCache.current.get(photos[viewerIndex].id) ?? null)
-                : null}
+              hiResUrl={hiResThumb(photos[viewerIndex].thumbnailLink)}
               style={{ ...styles.viewerImg, opacity: viewerLoading ? 0 : 1, transition: 'opacity 0.2s ease' }}
               alt={photos[viewerIndex].name}
               loading="eager"
@@ -697,20 +693,23 @@ export default function HomeScreen({
             )}
           </div>
 
-          {/* Tira de thumbnails */}
-          <div style={styles.thumbStrip} ref={thumbStripRef}>
-            {photos.map((photo, idx) => (
-              <div
-                key={photo.id}
-                onClick={() => setViewerIndex(idx)}
-                style={{
-                  ...styles.thumbItem,
-                  ...(idx === viewerIndex ? styles.thumbItemActive : {}),
-                }}
-              >
-                <DriveImage fileId={photo.id} thumbUrl={photo.thumbnailLink} thumbnail style={styles.thumbItemImg} loading="lazy" />
-              </div>
-            ))}
+          {/* Tira de thumbnails — selector fijo en el centro, las miniaturas se desplazan por debajo */}
+          <div style={styles.thumbStripWrap}>
+            <div style={styles.thumbSelector} />
+            <div style={styles.thumbStrip} ref={thumbStripRef}>
+              {photos.map((photo, idx) => (
+                <div
+                  key={photo.id}
+                  onClick={() => setViewerIndex(idx)}
+                  style={{
+                    ...styles.thumbItem,
+                    ...(idx === viewerIndex ? styles.thumbItemActive : {}),
+                  }}
+                >
+                  <DriveImage fileId={photo.id} thumbUrl={photo.thumbnailLink} thumbnail style={styles.thumbItemImg} loading="lazy" />
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Footer con acciones */}
@@ -1051,31 +1050,43 @@ const styles = {
     transformOrigin: 'center center',
     willChange: 'transform',
   },
+  thumbStripWrap: {
+    position: 'relative', flexShrink: 0,
+    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+  },
+  // Fixed selector frame, centred horizontally; thumbnails scroll beneath it.
+  thumbSelector: {
+    position: 'absolute', top: 8, left: '50%', marginLeft: -28,
+    width: 56, height: 56, border: '2px solid white', borderRadius: 6,
+    boxSizing: 'border-box', pointerEvents: 'none', zIndex: 2,
+  },
   thumbStrip: {
     display: 'flex', flexDirection: 'row', gap: 3,
     overflowX: 'auto', overflowY: 'hidden',
-    padding: '8px 8px 4px',
-    flexShrink: 0, scrollbarWidth: 'none',
-    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)',
+    padding: '8px 0 4px',
+    // Side padding so the first/last thumbnail can scroll under the centred selector.
+    paddingInline: 'calc(50% - 28px)',
+    scrollPaddingInline: 'calc(50% - 28px)',
+    scrollbarWidth: 'none',
   },
   thumbItem: {
     width: 56, height: 56, flexShrink: 0,
     borderRadius: 6, overflow: 'hidden', cursor: 'pointer',
-    border: '2px solid transparent', boxSizing: 'border-box',
-    opacity: 0.6,
+    boxSizing: 'border-box', opacity: 0.5,
+    transition: 'opacity 0.2s ease',
   },
   thumbItemActive: {
-    border: `2px solid white`, opacity: 1,
+    opacity: 1,
   },
   thumbItemImg: {
     width: '100%', height: '100%', objectFit: 'cover', display: 'block',
   },
   actionBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 56, height: 56, borderRadius: 20, background: 'rgba(255,255,255,0.06)',
+    width: 56, height: 56, borderRadius: 10, background: 'rgba(255,255,255,0.06)',
     border: 'none', cursor: 'pointer', overflow: 'hidden', padding: 0,
   },
-  actionIcon: { width: 56, height: 56, objectFit: 'cover', opacity: 0.8, display: 'block' },
+  actionIcon: { width: 40, height: 40, objectFit: 'cover', opacity: 0.8, display: 'block' },
   viewerFooter: {
     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
     padding: '12px 0',
