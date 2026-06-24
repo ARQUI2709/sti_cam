@@ -22,10 +22,10 @@ import galleryIcon from '../assets/images.svg';
  * Avoids 403 errors caused by signed thumbnailLink URLs that are user-specific.
  */
 // Screen-sized image for the full-screen viewer. Drive's thumbnailLink is a
-// signed URL ending in a size suffix (e.g. `=s220`); bumping it to `=s1600`
-// yields a sharp, screen-resolution image (~150–500KB) instead of the multi-MB
-// original — and it's a plain GET the browser can cache (no auth, no blob).
-const VIEWER_THUMB_SIZE = 1600;
+// signed URL ending in a size suffix (e.g. `=s220`); bumping it to `=s1000`
+// yields a sharp, screen-resolution image (~100–300KB) that loads fast instead
+// of the multi-MB original — and it's a plain GET the browser can cache.
+const VIEWER_THUMB_SIZE = 1000;
 function hiResThumb(link) {
   if (!link) return null;
   return link.replace(/=s\d+(-c)?$/, `=s${VIEWER_THUMB_SIZE}`);
@@ -167,6 +167,8 @@ export default function HomeScreen({
   const [showInfo, setShowInfo] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
   const thumbStripRef = useRef(null);
+  const isProgrammaticScroll = useRef(false);
+  const scrollSyncTimer = useRef(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const touchDeltaX = useRef(0);
@@ -189,6 +191,39 @@ export default function HomeScreen({
         if (url) new Image().src = url;
       });
   }, [viewerIndex, photos]);
+
+  // Thumbnail strip ↔ viewer sync. The strip stride is one thumbnail (56px) plus
+  // its gap (3px). The fixed centre selector sits over scrollLeft = index * STRIDE.
+  const THUMB_STRIDE = 59;
+
+  // Centre the active thumbnail under the selector when the photo changes via
+  // swipe or tap. The guard skips the scroll when the strip is already centred
+  // there (i.e. the change came *from* the user scrolling), breaking the loop.
+  useEffect(() => {
+    const strip = thumbStripRef.current;
+    if (!strip || viewerIndex === null) return;
+    const target = viewerIndex * THUMB_STRIDE;
+    if (Math.abs(strip.scrollLeft - target) < THUMB_STRIDE / 2) return;
+    isProgrammaticScroll.current = true;
+    strip.scrollTo({ left: target, behavior: 'smooth' });
+  }, [viewerIndex]);
+
+  // As the strip scrolls, select the thumbnail resting under the centre selector.
+  // Debounced so it fires once the scroll settles — for a user scroll it commits
+  // the new index; for our own programmatic scroll it just clears the flag.
+  const handleStripScroll = useCallback(() => {
+    const strip = thumbStripRef.current;
+    if (!strip) return;
+    clearTimeout(scrollSyncTimer.current);
+    scrollSyncTimer.current = setTimeout(() => {
+      if (isProgrammaticScroll.current) {
+        isProgrammaticScroll.current = false;
+        return;
+      }
+      const idx = Math.max(0, Math.min(photos.length - 1, Math.round(strip.scrollLeft / THUMB_STRIDE)));
+      setViewerIndex((cur) => (idx !== cur ? idx : cur));
+    }, 80);
+  }, [photos.length]);
 
   const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
@@ -696,7 +731,7 @@ export default function HomeScreen({
           {/* Tira de thumbnails — selector fijo en el centro, las miniaturas se desplazan por debajo */}
           <div style={styles.thumbStripWrap}>
             <div style={styles.thumbSelector} />
-            <div style={styles.thumbStrip} ref={thumbStripRef}>
+            <div style={styles.thumbStrip} ref={thumbStripRef} onScroll={handleStripScroll}>
               {photos.map((photo, idx) => (
                 <div
                   key={photo.id}
@@ -1068,12 +1103,14 @@ const styles = {
     paddingInline: 'calc(50% - 28px)',
     scrollPaddingInline: 'calc(50% - 28px)',
     scrollbarWidth: 'none',
+    scrollSnapType: 'x mandatory',
   },
   thumbItem: {
     width: 56, height: 56, flexShrink: 0,
     borderRadius: 6, overflow: 'hidden', cursor: 'pointer',
     boxSizing: 'border-box', opacity: 0.5,
     transition: 'opacity 0.2s ease',
+    scrollSnapAlign: 'center',
   },
   thumbItemActive: {
     opacity: 1,
