@@ -43,7 +43,7 @@ src/
 ```bash
 git clone https://github.com/TU_USUARIO/sti-cam.git
 cd sti-cam
-npm install
+pnpm install
 ```
 
 ### 2. Configurar Google Cloud (10 min)
@@ -83,7 +83,7 @@ En Google Cloud Console:
 ### 5. Ejecutar en desarrollo
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Abre en el celular: `http://TU_IP_LOCAL:5173/sti-cam/`
@@ -92,7 +92,7 @@ Abre en el celular: `http://TU_IP_LOCAL:5173/sti-cam/`
 ### 6. Deploy a GitHub Pages
 
 ```bash
-npm run deploy
+pnpm deploy
 ```
 
 Esto ejecuta `vite build` y publica con `gh-pages`.
@@ -135,6 +135,14 @@ Si no configuras el Client ID, la app funciona en modo demo:
 - Uploads simulados (no se conecta a Drive)
 
 Útil para probar la interfaz antes de configurar Google Cloud.
+
+## Indicador de estado "Drive"
+
+El punto junto a "Drive" en el encabezado muestra el estado de conexión y sesión:
+
+- 🔴 Rojo — sin conexión, sin usuario o sin Client ID
+- 🟠 Ámbar — sesión iniciada pero el token expiró (requiere volver a iniciar sesión)
+- 🟢 Verde — conectado con sesión válida
 
 ## Seguridad
 

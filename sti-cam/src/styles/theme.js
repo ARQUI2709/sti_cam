@@ -20,6 +20,7 @@ export const colors = {
   successBg:   '#1A1F1A',
   successBorder: '#22472A',
   error:       '#E64242',
+  warning:     '#F59E0B',
   white:       '#FFFFFF',
   black:       '#000000',
   overlay:     '#00000099',

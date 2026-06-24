@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All commands run from `sti-cam/`:
 
 ```bash
-npm run dev       # Dev server at http://localhost:5173/sti_cam/ (mobile accessible on same LAN)
-npm run build     # Production build → dist/
-npm run preview   # Preview production build locally
-npm run deploy    # Build + publish to GitHub Pages (gh-pages)
+pnpm dev          # Dev server at http://localhost:5173/sti_cam/ (mobile accessible on same LAN)
+pnpm build        # Production build → dist/
+pnpm preview      # Preview production build locally
+pnpm deploy       # Build + publish to GitHub Pages (gh-pages)
 ```
 
 No test suite — this is a PWA, not a library.
@@ -47,6 +47,7 @@ Screens (AuthScreen, HomeScreen, CameraScreen)
 - On reconnect, retries with delays `[0, 2s, 5s, 10s]` (iOS fires `online` before the radio is usable)
 - A 30s periodic interval catches cases where the `online` event never fires
 - If the token is expired and silent renewal is blocked (PWA), a "Sesión expirada" banner is shown requiring a manual user gesture to re-authenticate
+- The HomeScreen header "Drive" status dot reflects the same connectivity/auth state: red (`colors.error`) when offline / no user / no Client ID, amber (`colors.warning`) when signed in but the session is expired (driven by the `sessionExpired` prop = `needsReauth || offlineBanner?.needsAuth`), green (`colors.success`) when connected with a valid token
 
 **Project sync:**
 - `config/projects.js` keeps a localStorage cache (`sti-cam-projects`) as the fast path, with Drive as source-of-truth (`sti-cam-projects.json` in the `STI-Fotos` root folder)

@@ -288,6 +288,7 @@ export default function App() {
         enqueueUpload={enqueueUpload}
         onSignOut={() => { CameraService.release(); auth.signOut(); }}
         isOffline={isOffline}
+        sessionExpired={needsReauth || !!offlineBanner?.needsAuth}
         offlineCount={offlineCount}
         onRetrySync={manualRetry}
       />
