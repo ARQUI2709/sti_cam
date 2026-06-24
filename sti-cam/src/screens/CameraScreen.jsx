@@ -6,13 +6,11 @@ import ShutterButton from '../components/ShutterButton';
 import UploadQueueSheet from '../components/UploadQueueSheet';
 import Footer from '../components/Footer';
 import { colors, font, radius, globalStyles } from '../styles/theme';
-import galleryIcon from '../assets/images.svg';
 
 export default function CameraScreen({
   project, queue, sessionCount, addToQueue, updateQueueItem, enqueueUpload, onClose,
 }) {
   const videoRef = useRef(null);
-  const fileInputRef = useRef(null);
   const captureInputRef = useRef(null);
   const camera = useCamera();
 
@@ -92,37 +90,6 @@ export default function CameraScreen({
     enqueueUpload(photo);
   }, [project, projectInfo, sessionCount, addToQueue, enqueueUpload]);
 
-  // Import photo(s) from device gallery, preserving original file metadata
-  const handleGalleryFile = useCallback(async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    e.target.value = '';
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const blob = file.slice(0, file.size, file.type || 'image/jpeg');
-      const photo = createPhoto({
-        blob,
-        projectId: project,
-        projectName: projectInfo?.name,
-        sessionNumber: sessionCount + i + 1,
-        sourceDate: file.lastModified,   // preserve original file date
-      });
-
-      setLastThumb(photo.thumbUrl);
-      addToQueue({
-        id: photo.id,
-        projectId: photo.projectId,
-        name: photo.fileName,
-        size: photo.sizeLabel,
-        thumb: photo.thumbUrl,
-        status: 'pending',
-        progress: 0,
-      });
-      enqueueUpload(photo);
-    }
-  }, [project, sessionCount, addToQueue, enqueueUpload]);
-
   return (
     <div style={styles.fullscreen}>
       <style>{globalStyles}</style>
@@ -151,20 +118,9 @@ export default function CameraScreen({
 
       {/* Bottom controls */}
       <div style={styles.bottomBar}>
-        {/* Gallery import */}
+        {/* Last capture preview */}
         <div style={styles.sideSlot}>
           <div style={styles.galleryStack}>
-            <button onClick={() => fileInputRef.current?.click()} style={styles.iconBtn}>
-              <img src={galleryIcon} alt="Galería" style={styles.iconImg} />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={handleGalleryFile}
-            />
             {lastThumb && (
               <div onClick={() => setShowQueue(true)} style={styles.lastThumb}>
                 <img src={lastThumb} alt="" style={styles.thumbImg} />
@@ -253,16 +209,6 @@ const styles = {
   },
   galleryStack: {
     position: 'relative', width: 52, height: 52,
-  },
-  iconBtn: {
-    width: '100%', height: '100%', borderRadius: '50%',
-    background: 'none', border: 'none',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer',
-  },
-  iconImg: {
-    width: 44, height: 44, objectFit: 'contain',
-    borderRadius: '30%', overflow: 'hidden',
   },
   lastThumb: {
     position: 'absolute', inset: 0,

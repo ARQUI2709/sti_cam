@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { colors, font, spacing, radius, globalStyles } from '../styles/theme';
 import { getProject as getProjectById } from '../config/projects';
+import { createPhoto } from '../domain/Photo';
 import { getProjectFolderId, listFiles, deleteFile } from '../infrastructure/GoogleDrive';
 import { getOrCreateSheet, removePhotoRow, syncSheetFromDrive } from '../infrastructure/GoogleSheets';
 import { GOOGLE_CLIENT_ID } from '../config/google';
@@ -14,6 +15,7 @@ import shareImg from '../assets/share.svg';
 import infoImg from '../assets/info.svg';
 import deleteImg from '../assets/delete.svg';
 import logoutImg from '../assets/logout.svg';
+import galleryIcon from '../assets/images.svg';
 
 /**
  * Loads a Drive image using the current user's OAuth token.
@@ -99,9 +101,41 @@ function groupByDate(photos) {
 export default function HomeScreen({
   user, selectedProject, onSelectProject,
   queue, sessionCount, onOpenCamera, onSignOut,
+  addToQueue, enqueueUpload,
   offlineCount = 0, onRetrySync, isOffline = false,
 }) {
   const project = selectedProject ? getProjectById(selectedProject) : null;
+  const fileInputRef = useRef(null);
+
+  // Import photo(s) from device gallery, preserving original file metadata
+  const handleGalleryFile = useCallback((e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    e.target.value = '';
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const blob = file.slice(0, file.size, file.type || 'image/jpeg');
+      const photo = createPhoto({
+        blob,
+        projectId: selectedProject,
+        projectName: project?.name,
+        sessionNumber: sessionCount + i + 1,
+        sourceDate: file.lastModified,   // preserve original file date
+      });
+
+      addToQueue({
+        id: photo.id,
+        projectId: photo.projectId,
+        name: photo.fileName,
+        size: photo.sizeLabel,
+        thumb: photo.thumbUrl,
+        status: 'pending',
+        progress: 0,
+      });
+      enqueueUpload(photo);
+    }
+  }, [selectedProject, project, sessionCount, addToQueue, enqueueUpload]);
   const uploadingCount = queue.filter((q) => q.status === 'uploading').length;
   const doneCount = queue.filter((q) => q.status === 'done').length;
 
@@ -427,16 +461,39 @@ export default function HomeScreen({
 
       {/* Camera Button */}
       <div style={styles.cameraSection}>
-        <button
-          onClick={onOpenCamera}
-          disabled={!selectedProject}
-          style={{
-            ...styles.cameraBtn,
-            ...(selectedProject ? {} : styles.cameraBtnOff),
-          }}
-        >
-          <CamIconLarge />
-        </button>
+        <div style={styles.cameraRow}>
+          <button
+            onClick={onOpenCamera}
+            disabled={!selectedProject}
+            style={{
+              ...styles.cameraBtn,
+              ...(selectedProject ? {} : styles.cameraBtnOff),
+            }}
+          >
+            <CamIconLarge />
+          </button>
+
+          {/* Gallery import */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!selectedProject}
+            style={{
+              ...styles.galleryBtn,
+              ...(selectedProject ? {} : styles.galleryBtnOff),
+            }}
+            title="Importar de galería"
+          >
+            <img src={galleryIcon} alt="Galería" style={styles.galleryIconImg} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleGalleryFile}
+          />
+        </div>
         <p style={styles.cameraLabel}>
           {!selectedProject
             ? 'Selecciona un proyecto primero'
@@ -864,6 +921,24 @@ const styles = {
   cameraSection: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     padding: `${spacing.xxl}px ${spacing.xl}px ${spacing.lg}px`, gap: spacing.sm + 2,
+  },
+  cameraRow: {
+    position: 'relative', width: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  galleryBtn: {
+    position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)',
+    width: 56, height: 56, borderRadius: '50%',
+    background: colors.bgInput, border: `1px solid ${colors.borderLight}`,
+    cursor: 'pointer', padding: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  galleryBtnOff: {
+    opacity: 0.5,
+  },
+  galleryIconImg: {
+    width: 36, height: 36, objectFit: 'contain',
+    borderRadius: '30%', overflow: 'hidden',
   },
   cameraBtn: {
     width: 96, height: 96, borderRadius: '50%',

@@ -284,6 +284,8 @@ export default function App() {
         queue={queue}
         sessionCount={sessionCount}
         onOpenCamera={() => setActiveScreen('camera')}
+        addToQueue={addToQueue}
+        enqueueUpload={enqueueUpload}
         onSignOut={() => { CameraService.release(); auth.signOut(); }}
         isOffline={isOffline}
         offlineCount={offlineCount}
