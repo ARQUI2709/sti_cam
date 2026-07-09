@@ -1,34 +1,51 @@
 /**
- * Infraestructura: Google OAuth 2.0
- * Usa Google Identity Services (GIS) Token Model.
+ * Infraestructura: autenticación con Firebase Auth (proveedor Google).
  *
- * El script de GIS se carga dinámicamente.
+ * El login usa el proyecto Firebase de Sti-platform (signInWithPopup +
+ * GoogleAuthProvider). El access token OAuth de Google necesario para
+ * llamar a Drive/Sheets se extrae del credential que Firebase devuelve
+ * en el momento del sign-in — Firebase no lo renueva automáticamente
+ * (a diferencia de su propio ID token), así que este módulo sigue
+ * manejando expiración y renovación igual que antes.
+ *
  * Token y user info persisten en localStorage.
  *
- * v3: Fixed PWA sign-in — separated user-initiated auth (shows popup) from
- *     background token renewal (silent, prompt:'none').
+ * v4: Migrado de Google Identity Services (GIS) token model a Firebase Auth.
+ *     Mantiene la misma superficie exportada — initAuth, requestAccessToken,
+ *     getAccessToken, getSavedUser, hasValidToken, clearToken, revokeToken,
+ *     silentRenewalFailed, el evento 'sti-cam:auth-required' — para no tocar
+ *     a los consumidores (useAuth, GoogleDrive, GoogleSheets, App).
  */
 
-import { GOOGLE_CLIENT_ID, GOOGLE_SCOPES } from '../config/google.js';
+import { signInWithPopup, onAuthStateChanged, signOut as fbSignOut, GoogleAuthProvider } from 'firebase/auth';
+import { auth, googleProvider, isFirebaseConfigured } from '../config/firebase.js';
+import { GOOGLE_SCOPES } from '../config/google.js';
 import { logger } from './Logger.js';
 
 const STORAGE_KEY = 'sti-cam-auth';
+const SCHEMA_VERSION = 2;
 
-let tokenClient = null;
 let accessToken = null;
 let tokenExpiresAt = 0;
 
 /**
- * Module-level flag — set to true when prompt:'none' renewal fails in PWA mode.
+ * Module-level flag — set to true when background renewal is blocked in PWA mode.
  * Callers (like syncOfflineQueue) can check this to know they need to show a
  * manual re-auth UI.
  */
 export let silentRenewalFailed = false;
 
-// Restore from localStorage on load
+// Restore from localStorage on load. schemaVersion guards against stale
+// sessions from the pre-Firebase (GIS) auth model.
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  if (saved && saved.token && saved.expiresAt > Date.now() && saved.grantedScopes === GOOGLE_SCOPES) {
+  if (
+    saved &&
+    saved.schemaVersion === SCHEMA_VERSION &&
+    saved.token &&
+    saved.expiresAt > Date.now() &&
+    saved.grantedScopes === GOOGLE_SCOPES
+  ) {
     accessToken = saved.token;
     tokenExpiresAt = saved.expiresAt;
   }
@@ -36,6 +53,7 @@ try {
 
 function persistSession(user) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
     token: accessToken,
     expiresAt: tokenExpiresAt,
     grantedScopes: GOOGLE_SCOPES,
@@ -44,44 +62,29 @@ function persistSession(user) {
 }
 
 /**
- * Carga el script de Google Identity Services.
- */
-function loadGisScript() {
-  return new Promise((resolve, reject) => {
-    if (window.google?.accounts?.oauth2) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-
-    const timer = setTimeout(() => {
-      reject(new Error('Google Identity Services script timeout'));
-    }, 15000);
-
-    script.onload = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    script.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error('Failed to load Google Identity Services'));
-    };
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * Inicializa el token client de OAuth.
+ * Inicializa Firebase Auth y espera el primer chequeo de sesión.
  */
 export async function initAuth() {
-  if (!GOOGLE_CLIENT_ID) {
+  if (!isFirebaseConfigured) {
     throw new Error(
-      'VITE_GOOGLE_CLIENT_ID no configurado. Crea un archivo .env con tu Client ID.'
+      'Firebase no configurado. Copiá .env.example a .env y completá las variables VITE_FIREBASE_*.'
     );
   }
-  await loadGisScript();
+  await new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      unsubscribe();
+      if (fbUser) {
+        // Firebase ya tiene sesión viva (restaurada por su propia
+        // persistencia). Sincronizamos identidad en localStorage, pero
+        // el access token de Google (accessToken/tokenExpiresAt) sólo se
+        // obtiene en signInWithPopup — si no hay uno cacheado válido,
+        // getAccessToken() pedirá forceConsent en la próxima llamada.
+        const user = { email: fbUser.email, name: fbUser.displayName || fbUser.email, picture: fbUser.photoURL };
+        persistSession(user);
+      }
+      resolve();
+    });
+  });
 }
 
 /**
@@ -90,6 +93,7 @@ export async function initAuth() {
 export function getSavedUser() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && saved.schemaVersion !== SCHEMA_VERSION) return null;
     if (saved && saved.user && saved.expiresAt > Date.now()) {
       return saved.user;
     }
@@ -110,101 +114,63 @@ function isPWA() {
 }
 
 /**
- * Solicita token de acceso al usuario.
+ * Solicita token de acceso al usuario vía popup de Firebase/Google.
  *
  * @param {object} options
- * @param {boolean} options.forceConsent  — show consent screen (re-auth)
- * @param {boolean} options.silent        — use prompt:'none' (no UI, background renewal)
+ * @param {boolean} options.forceConsent  — re-muestra pantalla de consentimiento
+ * @param {boolean} options.silent        — sin uso real (ver nota abajo)
  *
- * Prompt logic:
- *   silent=true           → prompt:'none'  (no popup, cookie-based renewal)
- *   forceConsent=true      → prompt:'consent' (force re-consent)
- *   otherwise              → prompt:''      (default: shows account picker if needed)
- *
- * IMPORTANT: For user-initiated sign-in, do NOT pass silent=true.
- *            silent=true is ONLY for background token renewal.
+ * IMPORTANT: Firebase's GoogleAuthProvider no tiene equivalente al
+ * prompt:'none' de GIS (renovación silenciosa en background). Cualquier
+ * pedido silent=true falla rápido con 'interaction_required' para que
+ * el llamador caiga en su manejo existente de esa condición.
  */
-export function requestAccessToken({ forceConsent = false, silent = false } = {}) {
-  return new Promise((resolve, reject) => {
-    let prompt;
-    if (silent) {
-      prompt = 'none';
-    } else if (forceConsent) {
-      prompt = 'consent';
-    } else {
-      prompt = '';  // default — GIS decides (account picker if multiple accounts)
-    }
+export async function requestAccessToken({ forceConsent = false, silent = false } = {}) {
+  if (silent) {
+    throw new Error('interaction_required');
+  }
 
-    let timer = null;
-    if (silent) {
-      timer = setTimeout(() => {
-        reject(new Error('Silent token renewal timed out.'));
-      }, 15000);
-    }
+  logger.log('[auth] requestAccessToken (popup)', { forceConsent, isPWA: isPWA() });
 
-    const clearTimer = () => { if (timer) clearTimeout(timer); };
+  googleProvider.setCustomParameters({ prompt: forceConsent ? 'consent' : 'select_account' });
 
-    logger.log('[auth] requestAccessToken', { prompt, isPWA: isPWA(), forceConsent, silent });
+  let result;
+  try {
+    result = await signInWithPopup(auth, googleProvider);
+  } catch (err) {
+    logger.warn('[auth] signInWithPopup error:', err?.code, err?.message);
+    throw new Error(err?.message || 'Auth error');
+  }
 
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: GOOGLE_SCOPES,
-      prompt,
-      callback: (response) => {
-        if (response.error) {
-          clearTimer();
-          logger.warn('[auth] token response error:', response.error, response.error_description);
-          reject(new Error(response.error_description || response.error));
-          return;
-        }
-        // Renewal succeeded — clear the failure flag
-        silentRenewalFailed = false;
-        accessToken = response.access_token;
-        tokenExpiresAt = Date.now() + (response.expires_in || 3600) * 1000;
+  const credential = GoogleAuthProvider.credentialFromResult(result);
+  if (!credential?.accessToken) {
+    throw new Error('No se obtuvo el token de acceso de Google.');
+  }
 
-        const controller = new AbortController();
-        const fetchTimer = setTimeout(() => controller.abort(), 10000);
+  silentRenewalFailed = false;
+  accessToken = credential.accessToken;
+  // Firebase no expone expires_in para el access token del proveedor;
+  // los tokens OAuth de Google duran ~3600s consistentemente.
+  tokenExpiresAt = Date.now() + 3600 * 1000;
 
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal,
-        })
-          .then((r) => r.json())
-          .then((info) => {
-            clearTimeout(fetchTimer);
-            const user = {
-              email: info.email,
-              name: info.name || info.email,
-              picture: info.picture,
-            };
-            persistSession(user);
-            clearTimer();
-            resolve({ accessToken, ...user });
-          })
-          .catch(() => {
-            clearTimeout(fetchTimer);
-            persistSession(null);
-            clearTimer();
-            resolve({ accessToken, email: '', name: '' });
-          });
-      },
-      error_callback: (err) => {
-        clearTimer();
-        logger.warn('[auth] error_callback:', err);
-        reject(new Error(err.message || 'Auth error'));
-      },
-    });
+  const fbUser = result.user;
+  const user = {
+    email: fbUser.email,
+    name: fbUser.displayName || fbUser.email,
+    picture: fbUser.photoURL,
+  };
+  persistSession(user);
 
-    tokenClient.requestAccessToken();
-  });
+  return { accessToken, ...user };
 }
 
 /**
  * Devuelve el access token actual, renovándolo si es necesario.
  *
  * Background renewal (called internally by Drive/Sheets API helpers):
- *   - In PWA mode: uses silent renewal (prompt:'none') — no popup mid-upload.
- *   - If silent renewal fails, retries once after 1s (GIS iframe loading race).
+ *   - In PWA mode: bloqueado — Firebase no puede renovar el access token
+ *     de Google sin un popup, y los popups en background están bloqueados
+ *     en PWAs instaladas.
  *
  * User-initiated (forceConsent=true, e.g. from Sincronizar button):
  *   - Always shows Google popup.
@@ -230,7 +196,7 @@ export async function getAccessToken(forceConsent = false) {
 
   // Background renewal
   if (isPWA()) {
-    // PWA blocks the GIS silent-renewal iframe (prompt:'none') — skip it entirely.
+    // PWA blocks background popups — skip straight to the re-auth banner.
     // Dispatch event on first failure so the UI can show a re-auth banner
     // without waiting for the next syncOfflineQueue run.
     if (!silentRenewalFailed) {
@@ -239,7 +205,7 @@ export async function getAccessToken(forceConsent = false) {
     }
     throw new Error('interaction_required');
   } else {
-    // Regular browser: default prompt (account picker if needed)
+    // Regular browser: popup renewal (Firebase has no silent path here)
     const result = await requestAccessToken();
     logger.log('[auth] token renewal succeeded');
     return result.accessToken;
@@ -265,14 +231,13 @@ export function clearToken() {
 /**
  * Revoca el token y cierra sesión.
  */
-export function revokeToken() {
-  if (accessToken) {
-    window.google?.accounts?.oauth2?.revoke(accessToken);
-    accessToken = null;
-    tokenExpiresAt = 0;
-  }
-  // Reset silent renewal flag so the next sign-in attempt is not blocked.
+export async function revokeToken() {
+  accessToken = null;
+  tokenExpiresAt = 0;
   silentRenewalFailed = false;
+  try {
+    await fbSignOut(auth);
+  } catch {}
   localStorage.removeItem(STORAGE_KEY);
 }
 
