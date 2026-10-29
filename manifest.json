@@ -1,0 +1,23 @@
+{
+  "name": "STI-Cam",
+  "short_name": "STI-Cam",
+  "description": "Registro fotográfico de obra directo a Google Drive",
+  "start_url": "/sti_cam/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#19181e",
+  "theme_color": "#19181e",
+  "icons": [
+    {
+      "src": "/sti_cam/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/sti_cam/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
