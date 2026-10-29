@@ -1,6 +1,6 @@
 # STI-Cam — Plan de desarrollo
 
-Estado: Nivel 11/11 (desplegado en v1.18.2; falta prueba en celular) · Última actualización: 2026-10-29
+Estado: Nivel 11/11 (desplegado en v1.18.3; falta prueba en celular) · Última actualización: 2026-10-29
 
 > Proyecto existente. Este plan cubre el ajuste en curso; los niveles 1–3 van comprimidos.
 
@@ -52,10 +52,11 @@ Pantallas: sin cambios visibles. Cualquier fallo cae al archivo original (nunca 
 - Pendiente: prueba real en celular (Android e iPhone) y revisar la miniatura en Sheets.
 
 ### 11. Entrega
-- Versión: 1.18.2 · Publicado en GitHub Pages con `pnpm deploy`.
+- Versión: 1.18.3 · Se publica solo con GitHub Actions al hacer push a `main` (el sitio no usa la rama `gh-pages`).
 - Mantenimiento: si Google empieza a respetar el EXIF en miniaturas, este paso sigue siendo inofensivo.
 
 ## Registro de decisiones
 - 2026-10-29 — Corregir la orientación en el cliente antes de subir — `IMAGE()`/Looker no permiten rotar y las miniaturas de Google ignoran el EXIF.
 - 2026-10-29 — Parchear EXIF a mano en vez de usar `piexifjs` — evitar dependencia por un cambio de un solo campo.
 - 2026-10-29 — `allowBuilds` de `@firebase/util` y `protobufjs` en `false` — sus postinstall no hacen falta en el navegador y los marcadores pendientes bloqueaban `pnpm build`.
+- 2026-10-29 — Revertir en `main` el login con Firebase (`fa65bfb`), subido por error junto con v1.18.2 — no estaba aprobado para producción y dejaba la app en modo demo. Sigue en la rama `claude/firebase-login-backend-6dhuui`.

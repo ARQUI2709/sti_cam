@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { initAuth, requestAccessToken, revokeToken, hasValidToken, getSavedUser } from '../infrastructure/GoogleAuth';
-import { isFirebaseConfigured } from '../config/firebase';
+import { GOOGLE_CLIENT_ID } from '../config/google';
 
 /**
  * Hook de autenticación con Google.
@@ -17,8 +17,8 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Verificar si Firebase está configurado
-  const isConfigured = isFirebaseConfigured;
+  // Verificar si el Client ID está configurado
+  const isConfigured = !!GOOGLE_CLIENT_ID;
 
   useEffect(() => {
     if (!isConfigured) {

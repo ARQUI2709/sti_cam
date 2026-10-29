@@ -3,7 +3,7 @@ import { UploadManager } from '../domain/UploadManager';
 import { uploadFile, getProjectFolderId } from '../infrastructure/GoogleDrive';
 import { getOrCreateSheet, appendPhotoRow } from '../infrastructure/GoogleSheets';
 import { getProject } from '../config/projects';
-import { isFirebaseConfigured } from '../config/firebase';
+import { GOOGLE_CLIENT_ID } from '../config/google';
 import { saveToQueue, removeFromQueue } from '../infrastructure/OfflineQueue';
 import { logger } from '../infrastructure/Logger';
 
@@ -37,7 +37,7 @@ export function useUploadQueue({ updateQueueItem }) {
    * If Google isn't configured, simulates the upload (demo mode).
    */
   const enqueueUpload = useCallback(async (photo) => {
-    const isConfigured = isFirebaseConfigured;
+    const isConfigured = !!GOOGLE_CLIENT_ID;
 
     if (!isConfigured) {
       // Modo demo: simular upload

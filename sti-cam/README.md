@@ -6,15 +6,14 @@ Registro fotográfico de obra — fotos directo a Google Drive, sin pasar por Go
 
 ```
 src/
-├── config/           # Configuración (proyectos, Google OAuth, Firebase)
+├── config/           # Configuración (proyectos, Google OAuth)
 │   ├── projects.js   # Lista editable de proyectos
-│   ├── google.js     # Scopes de Drive/Sheets, carpeta raíz
-│   └── firebase.js   # Config de Firebase (login)
+│   └── google.js     # Client ID, scopes, carpeta raíz
 ├── domain/           # Lógica de negocio (pura, sin dependencias externas)
 │   ├── Photo.js      # Entidad: foto capturada
 │   └── UploadManager.js  # Servicio: cola de subida con concurrencia
 ├── infrastructure/   # Adaptadores a servicios externos
-│   ├── GoogleAuth.js     # Login con Firebase Auth (proveedor Google)
+│   ├── GoogleAuth.js     # OAuth 2.0 con Google Identity Services
 │   ├── GoogleDrive.js    # Drive API v3 (carpetas + upload)
 │   └── CameraService.js  # getUserMedia wrapper
 ├── hooks/            # React hooks (puente presentación ↔ infraestructura)
@@ -47,22 +46,20 @@ cd sti-cam
 pnpm install
 ```
 
-### 2. Configurar Firebase + Google Cloud (10 min)
+### 2. Configurar Google Cloud (10 min)
 
-STI-Cam usa **Firebase Authentication** (proveedor Google) para el login —
-lo normal es reutilizar el mismo proyecto Firebase que respalda Sti-platform,
-así ambas apps comparten backend de identidad.
-
-1. Ve a [Firebase Console](https://console.firebase.google.com) → tu proyecto (el de Sti-platform, o uno nuevo)
-2. **Authentication → Sign-in method** → habilita el proveedor **Google**
-3. **Authentication → Settings → Authorized domains** → agrega:
-   - `localhost` (normalmente ya está)
-   - `TU_USUARIO.github.io` (producción)
-4. **Project Settings → General → Your apps** → registra (o reutiliza) una **Web app** y copia su config
-5. Como Firebase corre sobre un proyecto GCP, además hace falta:
-   - **APIs & Services → Library** → habilitar **Google Drive API** y **Google Sheets API**
-   - **APIs & Services → OAuth consent screen → Scopes** → agregar `.../auth/drive.file` y `.../auth/spreadsheets`
-     (son scopes sensibles adicionales — sin esto el login funciona pero subir fotos falla con 401/403)
+1. Ve a [Google Cloud Console](https://console.cloud.google.com)
+2. Crea un proyecto nuevo: `STI-Cam`
+3. Ve a **APIs & Services → Library**
+4. Busca y habilita: **Google Drive API**
+5. Ve a **APIs & Services → Credentials**
+6. Click **Create Credentials → OAuth 2.0 Client ID**
+7. Tipo: **Web Application**
+8. Nombre: `STI-Cam`
+9. **Authorized JavaScript origins:**
+   - `http://localhost:5173` (desarrollo)
+   - `https://TU_USUARIO.github.io` (producción)
+10. Copia el **Client ID**
 
 ### 3. Configurar credenciales
 
@@ -70,24 +67,18 @@ así ambas apps comparten backend de identidad.
 cp .env.example .env
 ```
 
-Edita `.env` y pega los valores de la Web app de Firebase:
+Edita `.env` y pega tu Client ID:
 ```
-VITE_FIREBASE_API_KEY=AIzaSy...
-VITE_FIREBASE_AUTH_DOMAIN=tu-proyecto.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=tu-proyecto
-VITE_FIREBASE_STORAGE_BUCKET=tu-proyecto.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789012
-VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+VITE_GOOGLE_CLIENT_ID=123456789-abc.apps.googleusercontent.com
 ```
 
 ### 4. Restringir acceso (IMPORTANTE)
 
-Si el proyecto GCP detrás de Firebase está en modo **Testing**:
+En Google Cloud Console:
 1. Ve a **OAuth consent screen**
-2. En **Test users**: agrega SOLO los emails autorizados
-3. Cualquier otro email será rechazado por Google
-
-Si ya está en **Production** (app verificada), este paso no aplica.
+2. Modo: **External** → **Testing**
+3. En **Test users**: agrega SOLO los emails autorizados
+4. Cualquier otro email será rechazado por Google
 
 ### 5. Ejecutar en desarrollo
 
@@ -138,7 +129,7 @@ export const PROJECTS = [
 
 ## Modo Demo
 
-Si no configuras Firebase, la app funciona en modo demo:
+Si no configuras el Client ID, la app funciona en modo demo:
 - Login simulado
 - Cámara funcional
 - Uploads simulados (no se conecta a Drive)
@@ -149,7 +140,7 @@ Si no configuras Firebase, la app funciona en modo demo:
 
 El punto junto a "Drive" en el encabezado muestra el estado de conexión y sesión:
 
-- 🔴 Rojo — sin conexión, sin usuario o sin Firebase configurado
+- 🔴 Rojo — sin conexión, sin usuario o sin Client ID
 - 🟠 Ámbar — sesión iniciada pero el token expiró (requiere volver a iniciar sesión)
 - 🟢 Verde — conectado con sesión válida
 
@@ -159,12 +150,12 @@ El punto junto a "Drive" en el encabezado muestra el estado de conexión y sesi�
 - **OAuth restringido** a emails autorizados (Test users en Google Cloud)
 - **Scope mínimo**: `drive.file` (solo archivos creados por la app)
 - **Tokens temporales**: ~1 hora, solo en memoria del navegador
-- **Config de Firebase pública por diseño** (sin secrets en el código, como el Client ID de OAuth antes)
+- **Client ID público por diseño** (sin secrets en el código)
 
 ## Tecnologías
 
 - React 18 + Vite
-- Firebase Authentication (proveedor Google)
-- Google Drive API v3 / Google Sheets API v4
+- Google Identity Services (OAuth 2.0)
+- Google Drive API v3
 - getUserMedia (cámara custom)
 - PWA (installable en home screen)

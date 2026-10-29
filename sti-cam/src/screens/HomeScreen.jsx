@@ -5,7 +5,7 @@ import { createPhoto } from '../domain/Photo';
 import { normalizeOrientation } from '../infrastructure/ImageOrientation';
 import { getProjectFolderId, listFiles, deleteFile } from '../infrastructure/GoogleDrive';
 import { getOrCreateSheet, removePhotoRow, syncSheetFromDrive } from '../infrastructure/GoogleSheets';
-import { isFirebaseConfigured } from '../config/firebase';
+import { GOOGLE_CLIENT_ID } from '../config/google';
 import { getAccessToken } from '../infrastructure/GoogleAuth';
 import ProjectSelector from '../components/ProjectSelector';
 import UploadStatusBar from '../components/UploadStatusBar';
@@ -297,7 +297,7 @@ export default function HomeScreen({
   }, []);
 
   useEffect(() => {
-    if (!selectedProject || !project || !isFirebaseConfigured) {
+    if (!selectedProject || !project || !GOOGLE_CLIENT_ID) {
       setPhotos([]);
       return;
     }
@@ -476,7 +476,7 @@ export default function HomeScreen({
             <span style={styles.countBadge}>{uploadingCount}</span>
           )}
           <div style={styles.driveBadge}>
-            <span style={{ ...styles.driveDot, background: (!user || !isFirebaseConfigured || isOffline) ? colors.error : sessionExpired ? colors.warning : colors.success }} />
+            <span style={{ ...styles.driveDot, background: (!user || !GOOGLE_CLIENT_ID || isOffline) ? colors.error : sessionExpired ? colors.warning : colors.success }} />
             Drive
           </div>
           <button onClick={() => setShowLogoutConfirm(true)} style={styles.logoutBtn} title="Cerrar sesión">
