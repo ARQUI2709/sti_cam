@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { colors, font, spacing, radius, globalStyles } from '../styles/theme';
 import { getProject as getProjectById } from '../config/projects';
 import { createPhoto } from '../domain/Photo';
+import { normalizeOrientation } from '../infrastructure/ImageOrientation';
 import { getProjectFolderId, listFiles, deleteFile } from '../infrastructure/GoogleDrive';
 import { getOrCreateSheet, removePhotoRow, syncSheetFromDrive } from '../infrastructure/GoogleSheets';
 import { isFirebaseConfigured } from '../config/firebase';
@@ -122,14 +123,16 @@ export default function HomeScreen({
   const fileInputRef = useRef(null);
 
   // Import photo(s) from device gallery, preserving original file metadata
-  const handleGalleryFile = useCallback((e) => {
+  const handleGalleryFile = useCallback(async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     e.target.value = '';
 
+    // Sequential on purpose: decoding several full-res photos at once can run
+    // out of canvas memory on iOS.
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const blob = file.slice(0, file.size, file.type || 'image/jpeg');
+      const blob = await normalizeOrientation(file.slice(0, file.size, file.type || 'image/jpeg'));
       const photo = createPhoto({
         blob,
         projectId: selectedProject,

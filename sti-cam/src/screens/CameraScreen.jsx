@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { createPhoto } from '../domain/Photo';
+import { normalizeOrientation } from '../infrastructure/ImageOrientation';
 import { getProject } from '../config/projects';
 import ShutterButton from '../components/ShutterButton';
 import UploadQueueSheet from '../components/UploadQueueSheet';
@@ -64,10 +65,11 @@ export default function CameraScreen({
     if (!file) return;
     e.target.value = '';
 
-    const blob = file.slice(0, file.size, file.type || 'image/jpeg');
-
     setFlashAnim(true);
     setTimeout(() => setFlashAnim(false), 150);
+
+    // Bake EXIF rotation into the pixels so Google thumbnails show it upright
+    const blob = await normalizeOrientation(file.slice(0, file.size, file.type || 'image/jpeg'));
 
     const photo = createPhoto({
       blob,
